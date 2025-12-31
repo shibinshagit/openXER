@@ -1,21 +1,15 @@
 # XER Assistant - Python Dependencies
 
-# Core LLM Integration
-anthropic>=0.18.0         # Claude API client
-
-# Alternative LLM Options (optional)
-# openai>=1.10.0          # For GPT-4
-# google-generativeai>=0.3.0  # For Gemini
+# AI Provider Options (choose at least one)
+google-generativeai>=0.3.0  # For Gemini (FREE tier - recommended!)
+anthropic>=0.18.0           # For Claude (requires credits)
+openai>=1.10.0              # For GPT-4 (pay-as-you-go)
 
 # Web Interface
 streamlit>=1.30.0         # Web app framework
 
 # Environment Variables
 python-dotenv>=1.0.0      # Load .env files
-
-# Standard Library (usually pre-installed)
-pathlib                   # File path handling
-json                      # JSON processing
 
 # Optional: Enhanced Features
 # pandas>=2.0.0           # For Excel export

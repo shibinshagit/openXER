@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
 """
 XER Assistant - Custom LLM Assistant for Primavera P6 Project Analysis
-Powered by Claude API
+Powered by Opencoders
 """
 
 import streamlit as st
-import anthropic
 import json
 import os
 from pathlib import Path
@@ -15,49 +14,89 @@ from xer_parser import XERParser, generate_report
 # Load environment variables
 load_dotenv()
 
-# Configuration
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")  # Load from .env file
+# Configuration - Choose your AI provider
+AI_PROVIDER = os.getenv("AI_PROVIDER", "gemini")  # Options: "claude", "gemini", "openai"
+ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-def analyze_with_claude(query, xer_data):
-    """Send XER data to Claude for analysis"""
-
-    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+def analyze_with_ai(query, xer_data):
+    """Send XER data to AI for analysis"""
 
     # Prepare context
     context = f"""You are an expert Primavera P6 project management analyst.
 
 Here's the XER project data:
-{json.dumps(xer_data, indent=2)}
+{json.dumps(xer_data, indent=2)[:10000]}  # Limit to avoid token limits
 
 User's question: {query}
 
 Please provide a detailed, professional analysis."""
 
-    # Call Claude
-    message = client.messages.create(
-        model="claude-3-haiku-20240307",
-        max_tokens=4096,
-        messages=[
-            {"role": "user", "content": context}
-        ]
-    )
+    if AI_PROVIDER == "claude":
+        return analyze_with_claude(context)
+    elif AI_PROVIDER == "gemini":
+        return analyze_with_gemini(context)
+    elif AI_PROVIDER == "openai":
+        return analyze_with_openai(context)
+    else:
+        return "Error: Invalid AI provider configured"
 
-    return message.content[0].text
+
+def analyze_with_claude(context):
+    """Use Claude API"""
+    try:
+        import anthropic
+        client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+        message = client.messages.create(
+            model="claude-sonnet-4-5-20250929",
+            max_tokens=4096,
+            messages=[{"role": "user", "content": context}]
+        )
+        return message.content[0].text
+    except Exception as e:
+        return f"Claude Error: {str(e)}\n\nTip: Add API credits at https://console.anthropic.com/settings/billing"
+
+
+def analyze_with_gemini(context):
+    """Use Google Gemini API (FREE tier available!)"""
+    try:
+        import google.generativeai as genai
+        genai.configure(api_key=GOOGLE_API_KEY)
+        model = genai.GenerativeModel('gemini-2.0-flash-exp')
+        response = model.generate_content(context)
+        return response.text
+    except Exception as e:
+        return f"Gemini Error: {str(e)}\n\nTip: Get free API key at https://makersuite.google.com/app/apikey"
+
+
+def analyze_with_openai(context):
+    """Use OpenAI GPT-4o mini"""
+    try:
+        from openai import OpenAI
+        client = OpenAI(api_key=OPENAI_API_KEY)
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": context}]
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        return f"OpenAI Error: {str(e)}"
 
 
 def main():
     st.set_page_config(
         page_title="XER Project Assistant",
-        page_icon="🏗️",
+        page_icon="",
         layout="wide"
     )
 
-    st.title("🏗️ XER Project Analysis Assistant")
-    st.markdown("*Powered by Claude AI - Ask questions about your Primavera P6 projects*")
+    st.title("XER Assistant")
+    st.markdown("*upload xer & ask questions about your Primavera P6 projects*")
 
     # Sidebar - File upload
     with st.sidebar:
-        st.header("📁 Upload XER Files")
+        st.header("Upload XER Files")
         uploaded_files = st.file_uploader(
             "Choose XER files",
             type=['xer'],
@@ -96,7 +135,7 @@ def main():
 
         # Query interface
         st.markdown("---")
-        st.subheader("💬 Ask Questions About Your Project")
+        st.subheader("Ask Questions About Your Project")
 
         # Predefined queries
         quick_questions = [
@@ -117,9 +156,9 @@ def main():
 
         if st.button("🔍 Analyze", type="primary"):
             if query:
-                with st.spinner("Claude is analyzing your project..."):
+                with st.spinner(f"let me look into that..."):
                     try:
-                        response = analyze_with_claude(query, report)
+                        response = analyze_with_ai(query, report)
 
                         st.markdown("### 📊 Analysis Results")
                         st.markdown(response)
@@ -151,24 +190,24 @@ def main():
         # Welcome screen
         st.info("👈 Upload your XER files in the sidebar to get started")
 
-        st.markdown("""
-        ### What can this assistant do?
+        # st.markdown("""
+        # ### What can this assistant do?
 
-        - 📊 **Analyze project schedules** - Get insights on timeline, delays, and progress
-        - 🎯 **Identify critical paths** - Find activities driving your end date
-        - 👥 **Resource analysis** - Check utilization and conflicts
-        - 📈 **Variance analysis** - Compare baseline vs actual performance
-        - 🔍 **Custom queries** - Ask anything about your project data
+        # - 📊 **Analyze project schedules** - Get insights on timeline, delays, and progress
+        # - 🎯 **Identify critical paths** - Find activities driving your end date
+        # - 👥 **Resource analysis** - Check utilization and conflicts
+        # - 📈 **Variance analysis** - Compare baseline vs actual performance
+        # - 🔍 **Custom queries** - Ask anything about your project data
 
-        ### Supported Files
-        - Primavera P6 XER files (all versions)
-        - Multiple files for comparison
+        # ### Supported Files
+        # - Primavera P6 XER files (all versions)
+        # - Multiple files for comparison
 
-        ### Getting Started
-        1. Upload your XER file(s) in the sidebar
-        2. Choose a quick question or write your own
-        3. Click "Analyze" to get AI-powered insights
-        """)
+        # ### Getting Started
+        # 1. Upload your XER file(s) in the sidebar
+        # 2. Choose a quick question or write your own
+        # 3. Click "Analyze" to get AI-powered insights
+        # """)
 
 
 if __name__ == "__main__":
